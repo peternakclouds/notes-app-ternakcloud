@@ -42,7 +42,7 @@ function App() {
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ content: newNoteContent.trim() })
+        body: JSON.stringify({ text: newNoteContent.trim() })
       })
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
@@ -113,7 +113,7 @@ function App() {
         ) : (
           notes.map(note => (
             <div key={note.id} className="note-card">
-              <p className="note-content">{note.content}</p>
+              <p className="note-content">{note.text}</p>
               <button
                 className="delete-btn"
                 onClick={() => handleDeleteNote(note.id)}
