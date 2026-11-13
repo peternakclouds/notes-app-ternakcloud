@@ -1,0 +1,60 @@
+name: Kubernetes connectivity
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Check cluster access
+    runs-on: [self-hosted, linux, x64, k3s-notes]
+    timeout-minutes: 10
+
+    steps:
+      - name: Configure kubectl
+        env:
+          KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
+        run: |
+          mkdir -p "$HOME/.kube"
+          printf '%s' "$KUBE_CONFIG" | base64 --decode > "$HOME/.kube/config"
+          chmod 600 "$HOME/.kube/config"
+
+      - name: Show the active identity
+        run: |
+          kubectl config current-context
+          kubectl config view --minify -o jsonpath='{..namespace}'; echo
+          kubectl auth whoami
+
+      - name: Read application resources
+        run: |
+          kubectl get deployments -n notes
+          kubectl get pods -n notes
+          kubectl get services -n notes
+          kubectl get endpoints -n notes
+
+      - name: Check permissions
+        run: |
+          kubectl auth can-i create deployments -n notes
+          kubectl auth can-i update deployments/scale -n notes
+          kubectl auth can-i get pods/log -n notes
+          kubectl auth can-i get endpoints -n notes
+          kubectl auth can-i delete namespaces -n notes || true
+
+      - name: Test write access
+        run: |
+          kubectl create configmap pipeline-smoke-test \
+            -n notes \
+            --from-literal=source=github-actions
+          kubectl get configmap pipeline-smoke-test -n notes
+          kubectl delete configmap pipeline-smoke-test -n notes
+
+      - name: Confirm namespace deletion is denied
+        run: |
+          if kubectl delete namespace notes --dry-run=server 2>/tmp/denied.txt; then
+            echo "::error::The pipeline can delete namespaces"
+            exit 1
+          fi
+          grep -qi "forbidden" /tmp/denied.txt
+          echo "Namespace deletion correctly denied."
