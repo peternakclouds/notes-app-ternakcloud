@@ -1,0 +1,25 @@
+name: Runner smoke test
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    name: Verify runner and cluster
+    runs-on: [self-hosted, linux, x64, k3s-notes]
+    timeout-minutes: 10
+
+    steps:
+      - name: Show the runner
+        run: |
+          echo "Runner: $RUNNER_NAME"
+          echo "OS: $RUNNER_OS"
+          kubectl version --client
+          helm version --short
+
+      - name: Reach the API server
+        run: |
+          curl -k --max-time 10 https://${{ vars.K3S_PRIVATE_IP }}:6443/version
